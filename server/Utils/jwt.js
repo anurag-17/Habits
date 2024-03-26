@@ -40,12 +40,12 @@ exports.isAuthJWT = async (req, res, next) => {
   }
 
   try {
-    const decodedData = jwt.verify(token, process.env.jwtKey);
+    const decodedData = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = await User.findOne({ email: decodedData?.email });
+    req.user = await User.findOne({ _id: decodedData?.id });
 
     if (!req.user) {
-      req.user = await Admin.findOne({ email: decodedData?.email });
+      req.user = await Admin.findOne({ id: decodedData?.id });
     }
     if (req.user.activeToken && req.user.activeToken === token) {
       next();
@@ -67,7 +67,6 @@ exports.isAuthJWT = async (req, res, next) => {
     }
   }
 };
-
 // auth role
 exports.authorizeRoles = (...roles) => {
   return (req, res, next) => {
@@ -83,4 +82,7 @@ exports.authorizeRoles = (...roles) => {
     }
     next();
   };
+};
+exports.emitEvent = (req, event, users, data) => {
+  console.log("Emiting Event" ,event);
 };

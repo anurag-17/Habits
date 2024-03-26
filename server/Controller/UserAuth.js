@@ -62,7 +62,8 @@ exports.addUser = async (req, res ,next) => {
     provider_ID: req.body.provider_ID,
     name: req.body.name,
     contact: req.body.contact,
-    provider: req.body.provider
+    provider: req.body.provider,
+    avatar: req.body.avatar
   };
 
   if (password) {
@@ -84,6 +85,7 @@ exports.addUser = async (req, res ,next) => {
         email: newUser.email,
         contact: newUser.contact,
         provider: newUser.provider,
+        avatar: newUser.avatar
       },
       token: token,
     };
@@ -359,6 +361,7 @@ exports.loginUser = async (req, res) => {
       email: findUser.email,
       contact: findUser.contact,
       provider: findUser.provider,
+      activeToken: findUser.activeToken
     };
 
     return res.status(200).json({ success: true, user, token });
@@ -422,25 +425,60 @@ exports.getAllUsersWithPagination = async (req, res) => {
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;
 
+  const searchQuery = {};
+  if (req.query.search) {
+    searchQuery.$or = [
+      { name: { $regex: req.query.search, $options: "i" } }, 
+      { email: { $regex: req.query.search, $options: "i" } },
+      { contact: { $regex: req.query.search, $options: "i" } },
+    ];
+  }
+
   try {
-      const totalUsers = await User.countDocuments();
+    const totalUsers = await User.countDocuments(searchQuery);
 
-      const totalPages = Math.ceil(totalUsers / limit);
+    const totalPages = Math.ceil(totalUsers / limit);
 
-      const users = await User.find().skip(skip).limit(limit);
+    const users = await User.find(searchQuery).skip(skip).limit(limit);
 
-      return res.status(200).json({
-          success: true,
-          count: users.length,
-          page,
-          totalPages,
-          data: users
-      });
+    return res.status(200).json({
+      success: true,
+      count: users.length,
+      page,
+      totalPages,
+      data: users,
+    });
   } catch (error) {
-      return res.status(500).json({
-          success: false,
-          message: "Server error occurred while retrieving users.",
-          error: error.message
-      });
+    return res.status(500).json({
+      success: false,
+      message: "Server error occurred while retrieving users.",
+      error: error.message,
+    });
   }
 };
+
+exports.getMyProfile = async (req, res) => {
+  const id  = req.user;
+
+  try {
+    const user = await User.findById(id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user: user,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Server error occurred while retrieving the user.",
+      error: error.message,
+    });
+  }
+}
